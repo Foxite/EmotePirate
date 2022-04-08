@@ -1,0 +1,90 @@
+using System.Text;
+using System.Text.RegularExpressions;
+using DSharpPlus;
+using DSharpPlus.CommandsNext;
+using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
+using Microsoft.Extensions.Logging;
+
+namespace EmotePirate;
+
+//[Group()]
+//[Aliases("")]
+[RequireUserPermissions(Permissions.ManageEmojis, false)]
+//[RequireGuild] // Implicit from setting `false` above
+public class EmoteCommandModule : BaseCommandModule {
+	private static readonly Regex EmoteRegex = new Regex(@"<a?:(?<name>\w+):(?<id>\d{18})>");
+
+	public HttpClient Http { get; set; } = null!;
+	public ILogger<EmoteCommandModule> Logger { get; set; } = null!;
+	
+	private async Task CreateEmotes(CommandContext context, IEnumerable<CreateEmote> emotes, List<string>? failReasons = null) {
+		failReasons ??= new List<string>();
+		var createdEmotes = new List<DiscordEmoji>();
+		
+		foreach (CreateEmote emote in emotes) {
+			try {
+				await using MemoryStream ms = new MemoryStream();
+				await using (Stream download = await Http.GetStreamAsync(emote.Url)) {
+					await download.CopyToAsync(ms);
+				}
+				ms.Seek(0, SeekOrigin.Begin);
+				DiscordGuildEmoji newEmote = await context.Guild.CreateEmojiAsync(emote.Name, ms);
+				createdEmotes.Add(newEmote);
+			} catch (Exception e) {
+				Logger.LogError(e, "Error creating emote");
+				failReasons.Add($"ERROR: {e.Message}");
+			}
+		}
+		var result = new StringBuilder();
+		if (createdEmotes.Count > 0) {
+			result.Append("👌");
+			foreach (var emote in createdEmotes) {
+				result.Append(emote.ToString());
+			}
+			if (failReasons.Count > 0) {
+				result.AppendLine();
+			}
+		}
+		if (failReasons.Count > 0) {
+			result.AppendInterpolated($"Could not create {failReasons.Count} emote{(failReasons.Count == 1 ? "" : "s")}:");
+			foreach (string reason in failReasons) {
+				result.AppendInterpolated($"\n- {reason}");
+			}
+		}
+
+		await context.RespondAsync(result.ToString());
+	}
+	
+	[Command("emote")]
+	[RequireReferencedMessageAttribute]
+	public Task StealEmote(CommandContext context) {
+		var emoteMatches = EmoteRegex.Matches(context.Message.ReferencedMessage.Content);
+		var failReasons = new List<string>();
+		var emotes = new List<CreateEmote>();
+		
+		foreach (Match match in emoteMatches) {
+			if (!ulong.TryParse(match.Groups["id"].Value, out ulong emoteId) || !DiscordEmoji.TryFromGuildEmote(context.Client, emoteId, out DiscordEmoji emote)) {
+				failReasons.Add("parse failed");
+			} else {
+				emotes.Add(new CreateEmote(emote.Name, emote.Url));
+			}
+		}
+		return CreateEmotes(context, emotes, failReasons);
+	}
+	
+	[Command("emote")]
+	[RequireAttachment]
+	public Task CreateEmoteFromAttachment(CommandContext context, string name) => CreateEmotes(context, new[] { new CreateEmote(name, context.Message.Attachments[0].Url) });
+
+	[Command("emote")]
+	public Task CreateEmoteFromUrl(CommandContext context, Uri uri, string name) => CreateEmotes(context, new[] { new CreateEmote(name, uri.ToString()) });
+	
+	[Command("emote")]
+	public Task CreateEmoteFromUrl(CommandContext context, string name, Uri uri) => CreateEmotes(context, new[] { new CreateEmote(name, uri.ToString()) });
+
+	private record CreateEmote(
+		string Name,
+		string Url
+	);
+}
