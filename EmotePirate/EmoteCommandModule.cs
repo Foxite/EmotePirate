@@ -13,7 +13,7 @@ namespace EmotePirate;
 [RequireUserPermissions(Permissions.ManageEmojis, false)]
 //[RequireGuild] // Implicit from setting `false` above
 public class EmoteCommandModule : BaseCommandModule {
-	private static readonly Regex EmoteRegex = new Regex(@"<a?:(?<name>\w+):(?<id>\d{18})>");
+	private static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d{18})>");
 
 	public HttpClient Http { get; set; } = null!;
 	public ILogger<EmoteCommandModule> Logger { get; set; } = null!;
@@ -64,10 +64,10 @@ public class EmoteCommandModule : BaseCommandModule {
 		var emotes = new List<CreateEmote>();
 		
 		foreach (Match match in emoteMatches) {
-			if (!ulong.TryParse(match.Groups["id"].Value, out ulong emoteId) || !DiscordEmoji.TryFromGuildEmote(context.Client, emoteId, out DiscordEmoji emote)) {
-				failReasons.Add("parse failed");
+			if (ulong.TryParse(match.Groups["id"].Value, out ulong emoteId)) {
+				emotes.Add(new CreateEmote(match.Groups["name"].Value, $"https://cdn.discordapp.com/emojis/{emoteId}.{(string.IsNullOrEmpty(match.Groups["animated"].Value) ? "" : "a")}"));
 			} else {
-				emotes.Add(new CreateEmote(emote.Name, emote.Url));
+				failReasons.Add("parse failed");
 			}
 		}
 		return CreateEmotes(context, emotes, failReasons);
