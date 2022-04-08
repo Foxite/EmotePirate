@@ -65,7 +65,8 @@ public class EmoteCommandModule : BaseCommandModule {
 		
 		foreach (Match match in emoteMatches) {
 			if (ulong.TryParse(match.Groups["id"].Value, out ulong emoteId)) {
-				emotes.Add(new CreateEmote(match.Groups["name"].Value, $"https://cdn.discordapp.com/emojis/{emoteId}.{(string.IsNullOrEmpty(match.Groups["animated"].Value) ? ".webp" : ".gif")}"));
+				string url = $"https://cdn.discordapp.com/emojis/{emoteId}.{(string.IsNullOrEmpty(match.Groups["animated"].Value) ? "webp" : "gif")}";
+				emotes.Add(new CreateEmote(match.Groups["name"].Value, url));
 			} else {
 				failReasons.Add("parse failed");
 			}
