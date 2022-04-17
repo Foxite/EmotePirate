@@ -72,18 +72,6 @@ public sealed class Program {
 		var commands = discord.GetCommandsNext();
 		commands.RegisterCommands<EmoteCommandModule>();
 		
-		/*
-		commands.RegisterCommands(
-			typeof(EmoteCommandModule)
-				.GetMethods()
-				.Where(method => method.GetAttribute<CommandAttribute>() != null)
-				.Select(mi => {
-					return new CommandBuilder()
-						.WithAlias;
-				})
-				.ToArray()
-		);//*/
-		
 		commands.CommandErrored += (_, eventArgs) => {
 			return eventArgs.Exception switch {
 				CommandNotFoundException => eventArgs.Context.RespondAsync("Unknown command."),
@@ -118,7 +106,6 @@ public sealed class Program {
 			CommandContext ctx = commands.CreateContext(eventArgs.Message, prefix, cmd, rawArguments);
 			_ = cmd.ExecuteAsync(ctx);
 			return Task.CompletedTask;
-			//await this.Config.CommandExecutor.ExecuteAsync(ctx).ConfigureAwait(false);
 		};
 
 		await discord.ConnectAsync();
@@ -134,7 +121,7 @@ public sealed class Program {
 			return -1;
 
 		var cni = content.IndexOf('>');
-		if (cni == -1) // || content.Length <= cni + 2
+		if (cni == -1)
 			return -1;
 
 		var cnp = content.Substring(0, cni + 1);
