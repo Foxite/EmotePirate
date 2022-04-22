@@ -75,8 +75,19 @@ public class EmoteCommandModule : BaseCommandModule {
 	}
 	
 	[Command("emote")]
-	[RequireAttachment]
-	public Task CreateEmoteFromAttachment(CommandContext context, string name) => CreateEmotes(context, new[] { new CreateEmote(name, context.Message.Attachments[0].Url) });
+	public Task CreateEmoteFromAttachment(CommandContext context, string name) {
+		if (context.Message.Attachments.Count > 0) {
+			return CreateEmotes(context, new[] {
+				new CreateEmote(name, context.Message.Attachments[0].Url)
+			});
+		} else if (context.Message.ReferencedMessage.Attachments.Count > 0) {
+			return CreateEmotes(context, new[] {
+				new CreateEmote(name, context.Message.ReferencedMessage.Attachments[0].Url)
+			});
+		} else {
+			return context.Message.RespondAsync("No attachments on your message or its referenced message");
+		}
+	}
 
 	[Command("emote")]
 	public Task CreateEmoteFromUrl(CommandContext context, Uri uri, string name) => CreateEmotes(context, new[] { new CreateEmote(name, uri.ToString()) });
