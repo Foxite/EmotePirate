@@ -80,7 +80,7 @@ public class EmoteCommandModule : BaseCommandModule {
 		string? imageUrl =
 			context.Message.Attachments.FirstOrDefault()?.Url ??
 			context.Message.ReferencedMessage.Attachments.FirstOrDefault()?.Url ??
-			context.Message.ReferencedMessage.Embeds.FirstOrDefault(embed => embed.Image != null && embed.Image.Url.Type == DiscordUriType.Standard)?.Image.Url.ToString();
+			context.Message.ReferencedMessage.Embeds.FirstOrDefault(embed => embed.Type == "image")?.Url.ToString();
 
 		if (imageUrl != null) {
 			return CreateEmotes(context, new[] {
