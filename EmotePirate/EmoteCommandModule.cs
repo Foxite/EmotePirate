@@ -4,6 +4,7 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Net;
 using Microsoft.Extensions.Logging;
 
 namespace EmotePirate;
@@ -76,13 +77,14 @@ public class EmoteCommandModule : BaseCommandModule {
 	
 	[Command("emote")]
 	public Task CreateEmoteFromAttachment(CommandContext context, string name) {
-		if (context.Message.Attachments.Count > 0) {
+		string? imageUrl =
+			context.Message.Attachments.FirstOrDefault()?.Url ??
+			context.Message.ReferencedMessage.Attachments.FirstOrDefault()?.Url ??
+			context.Message.ReferencedMessage.Embeds.FirstOrDefault(embed => embed.Image != null && embed.Image.Url.Type == DiscordUriType.Standard)?.Image.Url.ToString();
+
+		if (imageUrl != null) {
 			return CreateEmotes(context, new[] {
-				new CreateEmote(name, context.Message.Attachments[0].Url)
-			});
-		} else if (context.Message.ReferencedMessage.Attachments.Count > 0) {
-			return CreateEmotes(context, new[] {
-				new CreateEmote(name, context.Message.ReferencedMessage.Attachments[0].Url)
+				new CreateEmote(name, imageUrl)
 			});
 		} else {
 			return context.Message.RespondAsync("No attachments on your message or its referenced message");
