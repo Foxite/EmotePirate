@@ -5,7 +5,10 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Net;
+using Foxite.Common.AsyncLinq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Org.BouncyCastle.Tsp;
 
 namespace EmotePirate;
 
@@ -18,7 +21,20 @@ public class EmoteCommandModule : BaseCommandModule {
 
 	public HttpClient Http { get; set; } = null!;
 	public ILogger<EmoteCommandModule> Logger { get; set; } = null!;
-	
+	public IOptions<EmoteOptions> Options { get; set; }
+
+	private async IAsyncEnumerable<DiscordMessage> GetRelevantMessages(CommandContext context) {
+		yield return context.Message;
+
+		if (context.Message.ReferencedMessage != null) {
+			yield return context.Message.ReferencedMessage;
+		}
+
+		foreach (DiscordMessage message in await context.Channel.GetMessagesAsync(10)) {
+			yield return message;
+		}
+	}
+
 	private async Task CreateEmotes(CommandContext context, IEnumerable<CreateEmote> emotes, List<string>? failReasons = null) {
 		failReasons ??= new List<string>();
 		var createdEmotes = new List<DiscordEmoji>();
@@ -58,9 +74,13 @@ public class EmoteCommandModule : BaseCommandModule {
 	}
 	
 	[Command("emote")]
-	[RequireReferencedMessageAttribute]
-	public Task StealEmote(CommandContext context) {
-		var emoteMatches = EmoteRegex.Matches(context.Message.ReferencedMessage.Content);
+	public async Task StealEmote(CommandContext context) {
+		MatchCollection? emoteMatches = await GetRelevantMessages(context).Select(message => EmoteRegex.Matches(message.Content)).FirstOrDefaultAsync(mc => mc.Count > 0);
+		if (emoteMatches == null) {
+			await context.RespondAsync(Options.Value.NoEmoteResponse);
+			return;
+		}
+		
 		var failReasons = new List<string>();
 		var emotes = new List<CreateEmote>();
 		
@@ -72,22 +92,19 @@ public class EmoteCommandModule : BaseCommandModule {
 				failReasons.Add("parse failed");
 			}
 		}
-		return CreateEmotes(context, emotes, failReasons);
+		await CreateEmotes(context, emotes, failReasons);
 	}
 	
 	[Command("emote")]
-	public Task CreateEmoteFromAttachment(CommandContext context, string name) {
-		string? imageUrl =
-			context.Message.Attachments.FirstOrDefault()?.Url ??
-			context.Message.ReferencedMessage.Attachments.FirstOrDefault()?.Url ??
-			context.Message.ReferencedMessage.Embeds.FirstOrDefault(embed => embed.Type == "image")?.Url.ToString();
+	public async Task CreateEmoteFromAttachment(CommandContext context, string name) {
+		string? imageUrl = await GetRelevantMessages(context).Select(message => message.Attachments.FirstOrDefault()?.Url ?? message.Embeds.FirstOrDefault(embed => embed.Type == "image")?.Url.ToString()).FirstOrDefaultAsync();
 
 		if (imageUrl != null) {
-			return CreateEmotes(context, new[] {
+			await CreateEmotes(context, new[] {
 				new CreateEmote(name, imageUrl)
 			});
 		} else {
-			return context.Message.RespondAsync("No attachments on your message or its referenced message");
+			await context.Message.RespondAsync("No attachments on your message or its referenced message");
 		}
 	}
 

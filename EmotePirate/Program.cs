@@ -36,8 +36,6 @@ public sealed class Program {
 				builder.AddExceptionDemystifyer();
 			})
 			.ConfigureServices((hbc, isc) => {
-				//isc.Configure<DiscordConfiguration>(hbc.Configuration.GetSection("Discord"));
-
 				isc.AddSingleton(isp => {
 					var clientConfig = new DiscordConfiguration {
 						Token = hbc.Configuration.GetSection("Discord").GetValue<string>("Token"),
@@ -63,6 +61,8 @@ public sealed class Program {
 				isc.AddNotifications().AddDiscord(hbc.Configuration.GetSection("DiscordNotifications"));
 				
 				isc.AddSingleton<HttpClient>();
+
+				isc.Configure<EmoteOptions>(hbc.Configuration.GetSection("Pirate"));
 			})
 			.Build();
 
