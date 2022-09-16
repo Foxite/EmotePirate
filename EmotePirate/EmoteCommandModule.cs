@@ -97,15 +97,17 @@ public class EmoteCommandModule : BaseCommandModule {
 	
 	[Command("emote")]
 	public async Task CreateEmoteFromAttachment(CommandContext context, string name) {
-		string? imageUrl = await GetRelevantMessages(context).Select(message => message.Attachments.FirstOrDefault()?.Url ?? message.Embeds.FirstOrDefault(embed => embed.Type == "image")?.Url.ToString()).FirstOrDefaultAsync();
+		await foreach (DiscordMessage message in GetRelevantMessages(context)) {
+			string? imageUrl = message.Attachments.FirstOrDefault()?.Url ?? message.Embeds.FirstOrDefault(embed => embed.Type == "image")?.Url.ToString();
 
-		if (imageUrl != null) {
-			await CreateEmotes(context, new[] {
-				new CreateEmote(name, imageUrl)
-			});
-		} else {
-			await context.Message.RespondAsync("No attachments on your message or its referenced message");
+			if (imageUrl != null) {
+				await CreateEmotes(context, new[] {
+					new CreateEmote(name, imageUrl)
+				});
+				return;
+			}
 		}
+		await context.Message.RespondAsync("No attachments on your message or its referenced message");
 	}
 
 	[Command("emote")]
