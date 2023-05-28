@@ -18,6 +18,7 @@ namespace EmotePirate;
 //[RequireGuild] // Implicit from setting `false` above
 public class EmoteCommandModule : BaseCommandModule {
 	private static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d{18})>");
+	private static readonly Regex UrlQuerySizeRegex = new Regex(@"(?:[?&])(size=\d+)");
 
 	public HttpClient Http { get; set; } = null!;
 	public ILogger<EmoteCommandModule> Logger { get; set; } = null!;
@@ -41,8 +42,13 @@ public class EmoteCommandModule : BaseCommandModule {
 		
 		foreach (CreateEmote emote in emotes) {
 			try {
+				string url = emote.Url;
+				if (url.StartsWith("https://cdn.discordapp.com/emojis")) {
+					url = UrlQuerySizeRegex.Replace(url, match => match.ValueSpan.StartsWith("?") ? "?size=512" : "&size=512");
+				}
+
 				await using MemoryStream ms = new MemoryStream();
-				await using (Stream download = await Http.GetStreamAsync(emote.Url)) {
+				await using (Stream download = await Http.GetStreamAsync(url)) {
 					await download.CopyToAsync(ms);
 				}
 				ms.Seek(0, SeekOrigin.Begin);
