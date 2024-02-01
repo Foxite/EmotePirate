@@ -17,7 +17,7 @@ namespace EmotePirate;
 [RequireUserPermissions(Permissions.ManageEmojis, false)]
 //[RequireGuild] // Implicit from setting `false` above
 public class EmoteCommandModule : BaseCommandModule {
-	private static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d{18})>");
+	private static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d+)>");
 	private static readonly Regex UrlQuerySizeRegex = new Regex(@"(?:[?&])(size=\d+)");
 
 	public HttpClient Http { get; set; } = null!;
