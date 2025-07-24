@@ -11,7 +11,7 @@ env:
   BUILD_CONTEXT: EmotePirate
   DOCKERFILE: EmotePirate/Dockerfile
   GLUE_KEY_ALG: ES512
-  GLUE_KEY_ID: authenticatedglue
+  GLUE_KEY_ID: EmotePirate
 
 jobs:
   build-and-push-image:
