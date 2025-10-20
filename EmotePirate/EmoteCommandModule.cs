@@ -17,7 +17,7 @@ namespace EmotePirate;
 [RequireUserPermissions(Permissions.ManageEmojis, false)]
 //[RequireGuild] // Implicit from setting `false` above
 public class EmoteCommandModule : BaseCommandModule {
-	private static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d+)>");
+	public static readonly Regex EmoteRegex = new Regex(@"<(?<animated>a?):(?<name>\w+):(?<id>\d+)>");
 	private static readonly Regex UrlQuerySizeRegex = new Regex(@"(?:[?&])(size=\d+)");
 
 	public HttpClient Http { get; set; } = null!;
@@ -75,8 +75,18 @@ public class EmoteCommandModule : BaseCommandModule {
 				result.AppendInterpolated($"\n- {reason}");
 			}
 		}
-
-		await context.RespondAsync(result.ToString());
+		
+		await context.RespondAsync(dmb => {
+			dmb.WithContent(result.ToString());
+			dmb.AddComponents(
+				new DiscordButtonComponent(
+					ButtonStyle.Danger,
+					"delete",
+					"Delete",
+					emoji: new DiscordComponentEmoji("❌")
+				)
+			);
+		});
 	}
 	
 	[Command("emote")]

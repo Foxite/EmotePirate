@@ -87,11 +87,16 @@ public sealed class Program {
 			if (eventArgs.Author.IsBot || eventArgs.Channel.IsPrivate) {
 				return Task.CompletedTask;
 			}
-
+			
 			int mentionLength = GetMentionPrefixLength(eventArgs.Message, discord.CurrentUser);
 
 			if (mentionLength == -1) {
-				return Task.CompletedTask;
+				var botRole = eventArgs.Guild.Roles.Where(role => role.Value.Name == client.CurrentApplication.Name).Select(kvp => kvp.Value).FirstOrDefault();
+				mentionLength = GetMentionPrefixLength(eventArgs.Message, botRole);
+
+				if (mentionLength == -1) {
+					return Task.CompletedTask;
+				}
 			}
 
 			var prefix = eventArgs.Message.Content.Substring(0, mentionLength);
@@ -107,6 +112,15 @@ public sealed class Program {
 			_ = cmd.ExecuteAsync(ctx);
 			return Task.CompletedTask;
 		};
+		
+		discord.ComponentInteractionCreated += async (client, eventArgs) => {
+			var matches = EmoteCommandModule.EmoteRegex.Matches(eventArgs.Message.Content);
+			foreach (Match match in matches) {
+				var emoteId = ulong.Parse(match.Groups["id"].Value);
+				var discordEmoji = await eventArgs.Guild.GetEmojiAsync(emoteId);
+				await discordEmoji.DeleteAsync();
+			}
+		};
 
 		await discord.ConnectAsync();
 
@@ -114,22 +128,46 @@ public sealed class Program {
 	}
 	
 	private static Regex UserRegex { get; } = new Regex(@"<@\!?(\d+?)>", RegexOptions.ECMAScript);
-	private static int GetMentionPrefixLength(DiscordMessage msg, DiscordUser user)
-	{
+	private static int GetMentionPrefixLength(DiscordMessage msg, DiscordUser user) {
 		var content = msg.Content;
-		if (!content.StartsWith("<@"))
+		if (!content.StartsWith("<@")) {
 			return -1;
+		}
 
-		var cni = content.IndexOf('>');
-		if (cni == -1)
+		var mentionEnd = content.IndexOf('>');
+		if (mentionEnd == -1) {
 			return -1;
+		}
 
-		var cnp = content.Substring(0, cni + 1);
-		var m =  UserRegex.Match(cnp);
-		if (!m.Success)
+		var mention = content.Substring(0, mentionEnd + 1);
+		var match = UserRegex.Match(mention);
+		if (!match.Success) {
 			return -1;
+		}
 
-		var userId = ulong.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
-		return user.Id != userId ? -1 : m.Value.Length;
+		var userId = ulong.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+		return user.Id != userId ? -1 : match.Value.Length;
+	}
+	
+	private static Regex RoleRegex { get; } = new Regex(@"<@&\!?(\d+?)>", RegexOptions.ECMAScript);
+	private static int GetMentionPrefixLength(DiscordMessage msg, DiscordRole role) {
+		var content = msg.Content;
+		if (!content.StartsWith("<@&")) {
+			return -1;
+		}
+
+		var mentionEnd = content.IndexOf('>');
+		if (mentionEnd == -1) {
+			return -1;
+		}
+
+		var mention = content.Substring(0, mentionEnd + 1);
+		var match = UserRegex.Match(mention);
+		if (!match.Success) {
+			return -1;
+		}
+
+		var roleId = ulong.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+		return role.Id != roleId ? -1 : match.Value.Length;
 	}
 }
